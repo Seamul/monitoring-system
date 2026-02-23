@@ -7,4 +7,3 @@ services:
     container_name: django_app
     ports:
       - "8009:8009"
-    restart: always

@@ -5,13 +5,11 @@ services:
     build: .
     ports:
       - "8000:8000"
-    restart: always
 
   node_exporter:
     image: prom/node-exporter
     ports:
       - "9100:9100"
-    restart: always
 
   promtail:
     image: grafana/promtail:latest
@@ -19,4 +17,3 @@ services:
       - ./promtail-config.yaml:/etc/promtail/config.yaml
       - /var/log:/var/log
     command: -config.file=/etc/promtail/config.yaml
-    restart: always
