@@ -1,6 +1,6 @@
 
 
-# 🚀 Centralized Application Monitoring System
+# Centralized Application Monitoring System
 
 ## FastAPI + Django + Prometheus + Grafana
 
@@ -9,87 +9,144 @@ This project provides a **centralized monitoring platform** for multiple backend
 * **Prometheus** → Metrics collection & storage
 * **Grafana** → Visualization dashboards
 * **Node Exporter** → Server resource monitoring
-* **FastAPI** → Application metrics (`prometheus-fastapi-instrumentator`)
-* **Django** → Application metrics (`django-prometheus`)
+* **FastAPI** → Application metrics
+* **Django** → Application metrics
 
 ---
 
-# 🏗 Architecture Overview
+**Node Exporter runs ON the server** and reads system information.
+
+Main job:
+
+* Collect server hardware & OS data
+
+ Collects:
+
+* CPU usage
+* RAM usage
+* Disk usage
+* Network traffic
+* System load
+
+Output:
+It exposes metrics at:
 
 ```
-                ┌──────────────┐
-                │   FastAPI     │
-                │   /metrics    │
-                └──────┬───────┘
-                       │
-                ┌──────▼───────┐
-                │    Django     │
-                │   /metrics    │
-                └──────┬───────┘
-                       │
-                       ▼
-                ┌──────────────┐
-                │  Prometheus   │
-                │ Metrics Store │
-                └──────┬────────┘
-                       ▼
-                ┌──────────────┐
-                │   Grafana     │
-                │ Dashboards    │
-                └──────────────┘
+http://server-ip:9100/metrics
+```
 
-        Node Exporter → CPU / Memory / Disk Metrics
+ Node Exporter **does NOT store data**
+ Node Exporter **does NOT create dashboards**
+
+It only says:
+
+> “Here is my server information.”
+
+---
+
+## Prometheus — Data Collector & Database
+
+**Prometheus collects data from exporters** like Node Exporter.
+
+ Main job:
+
+* Pull metrics from targets
+* Store metrics
+* Query metrics
+* Trigger alerts
+
+Prometheus regularly does:
+
+```
+Hey Node Exporter,
+give me latest metrics
+```
+
+Then it:
+
+* Saves data
+* Keeps history
+* Allows analysis
+
+ Prometheus **stores monitoring data**.
+
+---
+---
+
+##  How They Work Together
+
+```
+Server Resources
+     ↓
+Node Exporter
+     ↓
+Prometheus
+     ↓
+Grafana
+```
+---
+
+#  Architecture Overview
+
+```
+                                                 ┌──────────────┐
+                                                 │   FastAPI     │
+                                                 │   /metrics    │
+                                                 └──────┬───────┘
+                                                        │
+                                                        │
+                ┌──────▼───────┐                        
+                │    Django     │                       │
+                │   /metrics    │
+                └──────┬───────┘                        │
+                       │                                ▼
+                       -----------------------▼
+                                        ┌──────────────┐
+                                        │  Prometheus  │
+                                        │  Scraping    │
+                                        └──────┬───────┘
+                                               ▼
+                                        ┌──────────────┐
+                                        │   Grafana    │
+                                        │ Dashboards   │
+                                        └──────────────┘
+
+        Node Exporter → CPU / RAM / Disk Metrics
 ```
 
 ---
 
-# Monitoring Components
+#  Monitoring Components
 
-| Service       | Purpose                    |
-| ------------- | -------------------------- |
-| FastAPI       | API metrics exposure       |
-| Django        | API metrics exposure       |
-| Prometheus    | Metrics scraping & storage |
-| Grafana       | Visualization dashboards   |
-| Node Exporter | System monitoring          |
+| Service       | Purpose                      |
+| ------------- | ---------------------------- |
+| FastAPI       | Application metrics exposure |
+| Django        | Application metrics exposure |
+| Prometheus    | Metrics collection & storage |
+| Grafana       | Dashboard visualization      |
+| Node Exporter | Server resource monitoring   |
 
 ---
 
-# ⚡ Monitored Metrics
+# Monitored Metrics
 
 ## Application Metrics
 
- Total Requests
- Requests/sec
- Endpoint Usage
- HTTP Methods
- Status Codes
- API Latency
+ Total API Requests,
+ Endpoint-wise Requests,
+ HTTP Method Usage,
+ Request Rate
 
 ## System Metrics
 
- CPU Usage
- Memory Usage
- Disk Usage
- Network Usage
+CPU Usage,
+Memory Usage,
+Disk Usage,
+Network Usage
 
 ---
 
-# ⚡ FastAPI Metrics Implementation
-
-Monitoring enabled using:
-
- **prometheus-fastapi-instrumentator**
-
----
-
-## Install
-
-```bash
-pip install prometheus-fastapi-instrumentator[metrics]
-```
-
----
+#  FastAPI Metrics Implementation
 
 ## `main.py`
 
@@ -105,33 +162,23 @@ def home():
     return {"message": "Hello World"}
 
 
-# Automatic Prometheus metrics
+# Auto Prometheus instrumentation
 Instrumentator().instrument(app).expose(app)
 ```
 
----
-
-## FastAPI Metrics Endpoint
+### Metrics Endpoint
 
 ```
 http://SERVER_IP:8000/metrics
 ```
 
-Automatically exposes:
-
-* request count
-* latency
-* status codes
-* request duration
-* in-progress requests
-
 ---
 
-#  Django Metrics Implementation
+# Django Metrics Implementation
 
-Monitoring enabled using:
+Monitoring is enabled using:
 
- **django-prometheus**
+**django-prometheus**
 
 ---
 
@@ -150,6 +197,7 @@ pip install django-prometheus
 ```python
 INSTALLED_APPS = [
     "django_prometheus",
+    ...
 ]
 ```
 
@@ -190,7 +238,7 @@ urlpatterns = [
 
 ---
 
-## Django Metrics Endpoint
+### Metrics Endpoint
 
 ```
 http://SERVER_IP:8009/metrics
@@ -198,7 +246,7 @@ http://SERVER_IP:8009/metrics
 
 ---
 
-#  Prometheus Configuration
+# Prometheus Configuration
 
 ## `prometheus.yml`
 
@@ -208,19 +256,19 @@ global:
 
 scrape_configs:
 
-  - job_name: "fastapi"
+  - job_name: 'fastapi'
     metrics_path: /metrics
     static_configs:
       - targets:
           - 172.16.5.7:8000
 
-  - job_name: "django"
+  - job_name: 'django'
     metrics_path: /metrics
     static_configs:
       - targets:
           - 172.16.5.7:8009
 
-  - job_name: "node_exporter"
+  - job_name: 'node_exporter'
     static_configs:
       - targets:
           - 172.16.5.7:9100
@@ -228,19 +276,12 @@ scrape_configs:
 
 ---
 
-# 🐳 Central Monitoring Server
 
-Start monitoring stack:
+Start monitoring:
 
 ```bash
 docker compose up -d
 ```
-
-Includes:
-
- Prometheus
- Grafana
- Persistent volumes
 
 ---
 
@@ -255,150 +296,78 @@ Includes:
 
 ---
 
-#  Grafana Setup
+# Grafana Setup
 
-Login:
+## Login
 
 ```
 Username: admin
 Password: admin
 ```
 
-Add datasource:
+---
+
+## Add Prometheus Data Source
 
 ```
-Settings → Data Sources → Prometheus
+Settings → Data Sources → Add Prometheus
 ```
 
 URL:
 
 ```
-http://prometheus:9090
+http://172.16.5.7:9090
 ```
 
----
-
-# FastAPI Monitoring Queries
-
-(Using Instrumentator metrics)
+Click **Save & Test**
 
 ---
+
+# Useful Prometheus Queries
 
 ## Total Requests
+# Fast api Requests:
 
-```promql
-sum(http_requests_total{job="fastapi"})
+```
+http_requests_total
+```
+## Show speacific port
+```
+http_requests_total{
+ instance="172.16.5.7:8000",
+}
+```
+---
+
+## Fast api Requests total
+
+```
+sum(http_requests_total)
 ```
 
 ---
 
-##  Requests Per Second
 
-```promql
-sum(rate(http_requests_total{job="fastapi"}[1m]))
+
+---
+
+## Fast api Requests Per Second
+
+```
+rate(http_requests_total[1m])
 ```
 
 ---
 
-##  Requests Per Endpoint
+## Django Request Rate
 
-```promql
-sum by (handler)(
-  rate(http_requests_total{job="fastapi"}[1m])
-)
+```
+rate(django_http_requests_total_by_method_total[1m])
 ```
 
 ---
 
-##  Requests By HTTP Method
-
-```promql
-sum by (method)(
-  rate(http_requests_total{job="fastapi"}[1m])
-)
-```
-
----
-
-## Error Rate (5xx)
-
-```promql
-sum(
-  rate(
-    http_requests_total{
-      job="fastapi",
-      status=~"5.."
-    }[1m]
-  )
-)
-```
-
----
-
-## API Latency (P95)
-
-```promql
-histogram_quantile(
-  0.95,
-  sum(rate(http_request_duration_seconds_bucket[1m])) by (le)
-)
-```
-
----
-
-#  Django Monitoring Queries
-
----
-
-##  Total Requests
-
-```promql
-sum(django_http_requests_total_by_method_total{job="django"})
-```
-
----
-
-## Requests/sec
-
-```promql
-sum(
-  rate(
-    django_http_requests_total_by_method_total{
-      job="django",
-      view!="metrics"
-    }[1m]
-  )
-)
-```
-
----
-
-##  Requests by Status Code
-
-```promql
-sum by (status)(
-  rate(django_http_responses_total_by_status_total{job="django"}[1m])
-)
-```
-
----
-
-##  Django Error Rate
-
-```promql
-sum(
-  rate(
-    django_http_responses_total_by_status_total{
-      status=~"5..",
-      job="django"
-    }[1m]
-  )
-)
-```
-
----
-
-#  Generate Test Traffic
+# Generate Test Traffic
 
 FastAPI:
 
@@ -416,14 +385,32 @@ curl http://SERVER_IP:8009/home/
 
 # 🗄 Data Storage
 
-Prometheus retention:
+Prometheus TSDB retention:
 
-```
+```bash
 --storage.tsdb.retention.time=60d
 ```
 
-Stores monitoring history for **60 days**.
+Stores metrics for **60 days**.
 
 ---
+
+# Monitoring Result
+
+You can now monitor:
+
+✔ FastAPI APIs
+✔ Django APIs
+✔ Server resources
+✔ Traffic spikes
+✔ Endpoint popularity
+✔ Historical performance
+
+---
+
+
+
+
+
 
 
